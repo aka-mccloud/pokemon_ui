@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>main.qml</file>
+        <file>marker.qml</file>
+        <file>PokemonMapItem.qml</file>
+    </qresource>
+    <qresource prefix="/sprites">
+        <file>marker-icon.png</file>
+        <file>icons-large-sprite.png</file>
+    </qresource>
+</RCC>
