@@ -1,8 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>marker.qml</file>
         <file>PokemonMapItem.qml</file>
+        <file>LoginDialog.qml</file>
+        <file>MarkerMapItem.qml</file>
     </qresource>
     <qresource prefix="/sprites">
         <file>marker-icon.png</file>

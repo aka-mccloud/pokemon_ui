@@ -1,25 +1,47 @@
 import QtQuick 2.5
+import QtQuick.Dialogs 1.2
+import QtQuick.Window 2.0
 
 import QtLocation 5.6
-import QtPositioning 5.6
 
 import TestModule 1.0
 
-Rectangle {
+Window {
     visible: true
-    anchors.fill: parent
+    width: 800
+    height: 600
 
     TestObject {
         id: testObject
         onItemAppeared: function (pokemon) {
             var item = Qt.createComponent("PokemonMapItem.qml").createObject(map, { pokemon: pokemon });
             item.onClicked.connect(function (obj, mouse) {
-                console.log(obj);
+                console.log(obj.pokemon.spawn_pint_id);
+                console.log(obj.pokemon.encounter_id);
             });
             map.addMapItem(item);
         }
 
-//        state: "active"
+        onReady: {
+            map.addMapItem(Qt.createComponent("MarkerMapItem.qml")
+                           .createObject(map, { latitude: latitude, longitude: longitude }));
+        }
+
+        Component.onCompleted: {
+            loginDialog.open();
+        }
+
+        state: "active"
+    }
+
+    LoginDialog {
+        id: loginDialog
+
+        onButtonClicked: {
+            if (clickedButton === StandardButton.Ok) {
+                testObject.login(provider, login, password);
+            }
+        }
     }
 
     Plugin {

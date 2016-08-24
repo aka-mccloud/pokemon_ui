@@ -1,18 +1,17 @@
-#include <QApplication>
+#include <QGuiApplication>
 #include <QQmlApplicationEngine>
 
 #include "testobject.h"
-#include "mainwindow.h"
 
 int main(int argc, char *argv[])
 {
-    QApplication app(argc, argv);
+    QGuiApplication app(argc, argv);
 
     qmlRegisterType<TestObject>("TestModule", 1, 0, "TestObject");
     qmlRegisterType<Pokemon>("TestModule", 1, 0, "Pokemon");
 
-    MainWindow window;
-    window.show();
+    QQmlApplicationEngine engine;
+    engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 
     return app.exec();
 }

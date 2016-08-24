@@ -11,8 +11,12 @@
 
 #include "iauth.h"
 
+class TestObject;
+
 class PGoClient : public QObject
 {
+    friend class TestObject;
+
     Q_OBJECT
 public:
     explicit PGoClient(IAuth *auth, QObject *parent = 0);

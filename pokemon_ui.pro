@@ -1,13 +1,11 @@
 TEMPLATE = app
 
-QT += qml quick location network gui widgets
+QT += qml quick location network
 CONFIG += c++11
 
 SOURCES += src/main.cpp \
     src/testobject.cpp \
     src/pokemon.cpp \
-    src/logindialog.cpp \
-    src/mainwindow.cpp \
     src/authptc.cpp \
     src/authgoogle.cpp \
     src/pgoclient.cpp \
@@ -42,8 +40,6 @@ QML_IMPORT_PATH =
 HEADERS += \
     src/testobject.h \
     src/pokemon.h \
-    src/logindialog.h \
-    src/mainwindow.h \
     src/authptc.h \
     src/authgoogle.h \
     src/pgoclient.h \
@@ -71,9 +67,7 @@ HEADERS += \
     src/authfactory.h \
     third_party/xxHash/xxhash.h
 
-FORMS += \
-    ui/logindialog.ui \
-    ui/mainwindow.ui
+FORMS +=
 
 unix:!macx: LIBS += -L$$PWD/./libs -lcrypto -lprotobuf -lprotoc -lencrypt -lgflags
 

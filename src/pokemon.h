@@ -6,31 +6,49 @@
 class Pokemon : public QObject
 {
     Q_OBJECT
-    Q_PROPERTY(int pokemon_id READ pokemonId WRITE setPokemonId NOTIFY pokemonIdChanged)
-    Q_PROPERTY(double latitude READ latitude WRITE setLatitude NOTIFY latitudeChanged)
-    Q_PROPERTY(double longitude READ longitude WRITE setLongitude NOTIFY longitudeChanged)
+    Q_PROPERTY(QString spawn_pint_id READ spawnPointId WRITE setSpawnPointId NOTIFY spawnPointIdChanged)
+    Q_PROPERTY(qint64 encounter_id READ encounterId WRITE setEncounterId NOTIFY encounterIdChanged)
+    Q_PROPERTY(qint32 pokemon_id READ pokemonId WRITE setPokemonId NOTIFY pokemonIdChanged)
+    Q_PROPERTY(qint64 expiration_timestamp_ms READ expirationTimestampMs WRITE setExpirationTimestampMs NOTIFY expirationTimestampMsChanged)
+    Q_PROPERTY(qreal latitude READ latitude WRITE setLatitude NOTIFY latitudeChanged)
+    Q_PROPERTY(qreal longitude READ longitude WRITE setLongitude NOTIFY longitudeChanged)
 
 public:
     explicit Pokemon(QObject *parent = 0);
 
-    int pokemonId() const;
-    void setPokemonId(int pokemonId);
+    QString spawnPointId() const;
+    void setSpawnPointId(QString spawnPointId);
 
-    double latitude() const;
-    void setLatitude(double latitude);
+    qint64 encounterId() const;
+    void setEncounterId(qint64 encounterId);
 
-    double longitude() const;
-    void setLongitude(double longitude);
+    qint32 pokemonId() const;
+    void setPokemonId(qint32 pokemonId);
+
+    qint64 expirationTimestampMs() const;
+    void setExpirationTimestampMs(qint64 expirationTimestampMs);
+
+    qreal latitude() const;
+    void setLatitude(qreal latitude);
+
+    qreal longitude() const;
+    void setLongitude(qreal longitude);
 
 signals:
-    void pokemonIdChanged(int);
-    void latitudeChanged(double);
-    void longitudeChanged(double);
+    void spawnPointIdChanged(QString);
+    void encounterIdChanged(qint64);
+    void pokemonIdChanged(qint32);
+    void expirationTimestampMsChanged(qint64);
+    void latitudeChanged(qreal);
+    void longitudeChanged(qreal);
 
 private:
-    int _pokemonId;
-    double _latitude;
-    double _longitude;
+    QString _spawnPointId;
+    qint64 _encounterId;
+    qint32 _pokemonId;
+    qint64 _expirationTimestampMs;
+    qreal _latitude;
+    qreal _longitude;
 };
 
 #endif // POKEMON_H

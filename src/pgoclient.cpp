@@ -21,8 +21,8 @@ using namespace POGOProtos;
 PGoClient::PGoClient(IAuth *auth, QObject *parent) : QObject(parent), _auth(auth), _apiUrl("https://pgorelease.nianticlabs.com/plfe/rpc")
 {
     _requestId = 1;
-    _latitude = 50.418709;
-    _longitude = 30.5236256;
+    _latitude = 50.4245955;
+    _longitude = 30.5074414;
     _altitude = 8.0;
 
     _timer.start();

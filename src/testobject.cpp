@@ -1,58 +1,105 @@
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
-
-#include <QNetworkRequest>
-#include <QNetworkReply>
-#include <QTimer>
-#include <QUrl>
+#include "proto/POGOProtos.Networking.Responses.pb.h"
 
 #include "testobject.h"
 
+using namespace POGOProtos;
+using namespace POGOProtos::Networking::Responses;
+
 TestObject::TestObject(QQuickItem *parent)
     : QQuickItem(parent)
-    , refreshTimer(this)
+    , _refreshTimer(this)
+    , _client(nullptr)
 {
     // update every 5 seconds
-    refreshTimer.setInterval(5000);
-    refreshTimer.stop();
+    _refreshTimer.setInterval(15000);
 
-    connect(&refreshTimer, &QTimer::timeout, this, &TestObject::refreshData);
+    connect(&_refreshTimer, &QTimer::timeout, this, &TestObject::refreshData);
     connect(this, &QQuickItem::stateChanged, this, &TestObject::changeState);
+}
+
+void TestObject::login(const QString &provider, const QString &login, const QString &password)
+{
+    qDebug() << "Invoked from QML with args: " << provider << login << password;
+
+    IAuth *auth = AuthFactory::createAuthProvider(provider == "google" ? IAuth::Google : IAuth::PTC);
+    auth->login(login, password);
+
+    _client = new PGoClient(auth, this);
+    _client->init();
+
+    emit ready();
 }
 
 void TestObject::changeState(const QString &str)
 {
     qDebug() << "Change state to:" << str;
 
-    refreshTimer.start();
+    if (str == "active")
+        _refreshTimer.start();
+    else
+        _refreshTimer.stop();
+}
+
+bool contains(const std::list<Pokemon*> &list, qint64 encounterId)
+{
+    foreach (Pokemon* pokemon, list) {
+        if (pokemon->encounterId() == encounterId)
+            return true;
+    }
+
+    return false;
 }
 
 void TestObject::refreshData()
 {
-    QNetworkReply *reply = networkManager.get(QNetworkRequest(QUrl("http://192.168.0.100:5000/raw_data?pokemons=true&gyms=false")));
+    if (_client == nullptr)
+        return;
 
-    QEventLoop loop;
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
+    GetMapObjectsResponse *response = _client->getMapObjects();
 
-    QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
-    QJsonArray pokemonArray = doc.object().find("pokemons")->toArray();
+    foreach (Map::MapCell cell, response->map_cells()) {
+        foreach (Map::Pokemon::MapPokemon pokemon, cell.catchable_pokemons()) {
+            if (::contains(_pokemons, pokemon.encounter_id()))
+                continue;
 
-    foreach (auto pokemonItem, pokemonArray)
-    {
-//        int pokemonId = pokemonItem.toObject().find("pokemon_id")->toInt();
-        QJsonObject pokemonObj = pokemonItem.toObject();
-        Pokemon *pokemon = new Pokemon();
-        for (auto propertyIt = pokemonObj.begin(); propertyIt != pokemonObj.end(); ++propertyIt)
-        {
-            pokemon->setProperty(propertyIt.key().toStdString().c_str(), propertyIt.value().toVariant());
+            Pokemon *p = new Pokemon();
+            p->setSpawnPointId(QString::fromStdString(pokemon.spawn_point_id()));
+            p->setEncounterId(pokemon.encounter_id());
+            p->setPokemonId(pokemon.pokemon_id());
+            p->setExpirationTimestampMs(pokemon.expiration_timestamp_ms());
+            p->setLatitude(pokemon.latitude());
+            p->setLongitude(pokemon.longitude());
+            _pokemons.push_back(p);
+
+            emit itemAppeared(p);
         }
-//        pokemonItem.toObject().begin();
+    }
+}
 
-//        pokemon->setPokemonId(pokemonId);
+double TestObject::latitude() const
+{
+    return _client ? _client->_latitude : 0.0;
+}
 
+void TestObject::setLatitude(double latitude)
+{
+    if (_client)
+    {
+        _client->_latitude = latitude;
+        emit latitudeChanged(latitude);
+    }
+}
 
-        emit itemAppeared(pokemon);
+double TestObject::longitude() const
+{
+    return _client ? _client->_longitude : 0.0;
+}
+
+void TestObject::setLongitude(double longitude)
+{
+    if (_client)
+    {
+        _client->_longitude = longitude;
+        emit longitudeChanged(longitude);
     }
 }

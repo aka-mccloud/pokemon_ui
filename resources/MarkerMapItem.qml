@@ -22,9 +22,8 @@ MapQuickItem {
 
     MouseArea {
         cursorShape: Qt.PointingHandCursor
-
         anchors.fill: parent
-        drag.target: parent
+//        drag.target: parent
 //        drag.drop: {
 //            // do something
 //        }
