@@ -3,7 +3,8 @@
 
 #include <QMainWindow>
 
-#include "authptc.h"
+#include "iauth.h"
+#include "pgoclient.h"
 
 namespace Ui {
 class MainWindow;
@@ -19,10 +20,13 @@ public:
 
 private slots:
     void showLoginDialog();
+    void loginSuccessful();
 
 private:
     Ui::MainWindow *ui;
-    AuthPTC *auth;
+
+    IAuth *_auth;
+    PGoClient *_client;
 
 };
 

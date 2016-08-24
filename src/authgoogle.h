@@ -6,20 +6,20 @@
 #include <QNetworkAccessManager>
 #include <QUrlQuery>
 
-class AuthGoogle : public QObject
+#include "iauth.h"
+
+class AuthGoogle : public QObject, public IAuth
 {
     Q_OBJECT
+    Q_INTERFACES(IAuth)
 public:
     explicit AuthGoogle(QObject *parent = 0);
 
-    void login(const QString &email, const QString &password);
-    QString getToken(bool force = false);
-
-signals:
-    void loginSuccessful();
-    void loginFailed();
-
-public slots:
+    // IAuth interface
+public:
+    virtual void login(const QString &email, const QString &password) override;
+    virtual QString getToken(bool force = false) override;
+    virtual QString provider() override;
 
 private:
     QMap<QString, QString> performRequest(const QUrlQuery &query);

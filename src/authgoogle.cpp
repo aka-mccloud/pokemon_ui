@@ -54,7 +54,7 @@ void AuthGoogle::login(const QString &email, const QString &password)
 
     QMap<QString, QString> response = performRequest(params);
     masterToken = response["token"];
-    token = response["auth"];
+//    token = response["auth"];
 }
 
 QString AuthGoogle::getToken(bool force)
@@ -83,6 +83,11 @@ QString AuthGoogle::getToken(bool force)
     token = response["auth"];
 
     return token;
+}
+
+QString AuthGoogle::provider()
+{
+    return "google";
 }
 
 QMap<QString, QString> AuthGoogle::performRequest(const QUrlQuery &query)

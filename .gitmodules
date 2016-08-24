@@ -1,3 +1,9 @@
 [submodule "third_party/POGOProtos"]
 	path = third_party/POGOProtos
 	url = https://github.com/AeonLucid/POGOProtos.git
+[submodule "third_party/xxHash"]
+	path = third_party/xxHash
+	url = https://github.com/Cyan4973/xxHash.git
+[submodule "third_party/s2-geometry-library"]
+	path = third_party/s2-geometry-library
+	url = https://github.com/hbs/s2-geometry-library.git

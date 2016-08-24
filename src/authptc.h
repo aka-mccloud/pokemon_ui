@@ -2,26 +2,24 @@
 #define AUTHPTC_H
 
 #include <QObject>
+#include <QMap>
 #include <QNetworkAccessManager>
+#include <QUrlQuery>
 
-class AuthPTC : public QObject
+#include "iauth.h"
+
+class AuthPTC : public QObject, public IAuth
 {
     Q_OBJECT
+    Q_INTERFACES(IAuth)
 public:
     explicit AuthPTC(QObject *parent = 0);
 
-    void login(const QString &username, const QString &password);
-    QString getToken(bool force = false);
-
-signals:
-    void loginSuccessful();
-    void loginFailed();
-
-public slots:
-
-private slots:
-    void phaseOne(QNetworkReply *reply);
-    void phaseTwo(QNetworkReply *reply);
+    // IAuth interface
+public:
+    virtual void login(const QString &username, const QString &password) override;
+    virtual QString getToken(bool force = false) override;
+    virtual QString provider() override;
 
 private:
     QNetworkAccessManager net;

@@ -1,15 +1,12 @@
+#include "authfactory.h"
 #include "logindialog.h"
 #include "ui_logindialog.h"
 
-LoginDialog::LoginDialog(AuthPTC *auth, QWidget *parent) :
+LoginDialog::LoginDialog(QWidget *parent) :
     QDialog(parent),
-    ui(new Ui::LoginDialog),
-    auth(auth)
+    ui(new Ui::LoginDialog)
 {
     ui->setupUi(this);
-
-    connect(auth, &AuthPTC::loginSuccessful, this, &QDialog::accept);
-//    connect(auth, &AuthPTC::loginFailed, this, &QDialog::reject);
 }
 
 LoginDialog::~LoginDialog()
@@ -17,8 +14,17 @@ LoginDialog::~LoginDialog()
     delete ui;
 }
 
+IAuth *LoginDialog::auth()
+{
+    return _auth;
+}
+
 void LoginDialog::on_loginButton_clicked()
 {
     ui->loginButton->setEnabled(false);
-    auth->login(ui->usernameEdit->text(), ui->passwordEdit->text());
+
+    _auth = AuthFactory::createAuthProvider(ui->googleRadioButton->isChecked() ? IAuth::Google : IAuth::PTC);
+    _auth->login(ui->usernameEdit->text(), ui->passwordEdit->text());
+
+    QDialog::accept();
 }

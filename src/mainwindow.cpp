@@ -10,8 +10,7 @@
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    auth(new AuthPTC)
+    ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
@@ -19,15 +18,6 @@ MainWindow::MainWindow(QWidget *parent) :
     QWidget *container = QWidget::createWindowContainer(view, this);
     view->setSource(QUrl("qrc:/main.qml"));
     ui->centralwidget->layout()->addWidget(container);
-
-//    AuthGoogle auth;
-//    auth.login("test.mail.zx@gmail.com", "lM0Qxec3");
-//    QString token = auth.getToken(true);
-
-//    qWarning() << token;
-
-//    PGoClient client;
-//    client.auth("google", token);
 
     QTimer::singleShot(100, this, &MainWindow::showLoginDialog);
 }
@@ -39,9 +29,22 @@ MainWindow::~MainWindow()
 
 void MainWindow::showLoginDialog()
 {
-    LoginDialog *dialog = new LoginDialog(auth, this);
-    connect(dialog, &QDialog::accepted, this, &MainWindow::show);
+    LoginDialog *dialog = new LoginDialog(this);
+    connect(dialog, &QDialog::accepted, this, &MainWindow::loginSuccessful);
     connect(dialog, &QDialog::rejected, qApp, &QApplication::quit);
 
     dialog->show();
+}
+
+void MainWindow::loginSuccessful()
+{
+    LoginDialog *dialog = qobject_cast<LoginDialog*>(QObject::sender());
+    if (dialog != nullptr)
+    {
+        _auth = dialog->auth();
+        _client = new PGoClient(_auth, this);
+        _client->init();
+        _client->getInventory();
+        _client->getMapObjects();
+    }
 }

@@ -4,7 +4,10 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 
-#include <QFile>
+#include <google/protobuf/text_format.h>
+#include <third_party/xxHash/xxhash.h>
+#include <s2cellid.h>
+#include <s2latlng.h>
 
 #include "proto/POGOProtos.Networking.Envelopes.pb.h"
 #include "proto/POGOProtos.Networking.Requests.pb.h"
@@ -15,18 +18,22 @@
 
 using namespace POGOProtos;
 
-PGoClient::PGoClient(QObject *parent) : QObject(parent), _apiUrl("https://pgorelease.nianticlabs.com/plfe/rpc")
+PGoClient::PGoClient(IAuth *auth, QObject *parent) : QObject(parent), _auth(auth), _apiUrl("https://pgorelease.nianticlabs.com/plfe/rpc")
 {
     _requestId = 1;
     _latitude = 50.418709;
     _longitude = 30.5236256;
     _altitude = 8.0;
 
-
+    _timer.start();
 }
 
-void PGoClient::auth(const QString &provider, const QString &token)
+void PGoClient::init()
 {
+    QString token = _auth->getToken();
+    if (token.isEmpty())
+        return;
+
     Networking::Requests::Messages::GetPlayerMessage getPlayerMessage;
     Networking::Requests::Messages::GetHatchedEggsMessage getHatchedEggsMessage;
     Networking::Requests::Messages::GetInventoryMessage getInventoryMessage;
@@ -41,7 +48,7 @@ void PGoClient::auth(const QString &provider, const QString &token)
     requestEnvelope.set_latitude(_latitude);
     requestEnvelope.set_longitude(_longitude);
     requestEnvelope.set_altitude(_altitude);
-    requestEnvelope.mutable_auth_info()->set_provider(provider.toStdString());
+    requestEnvelope.mutable_auth_info()->set_provider(_auth->provider().toStdString());
     requestEnvelope.mutable_auth_info()->mutable_token()->set_contents(token.toStdString());
     requestEnvelope.mutable_auth_info()->mutable_token()->set_unknown2(59);
     requestEnvelope.set_unknown12(989);
@@ -84,7 +91,148 @@ void PGoClient::auth(const QString &provider, const QString &token)
     Networking::Envelopes::ResponseEnvelope responseEnvelope;
     if (responseEnvelope.ParseFromArray(response.data(), response.size()))
     {
-        _apiUrl = QUrl(responseEnvelope.api_url().c_str());
+        _apiUrl = QUrl(QString("https://") + responseEnvelope.api_url().c_str() + "/rpc");
         _authTicket = responseEnvelope.auth_ticket();
     }
+
+    std::string out;
+    google::protobuf::TextFormat::PrintToString(responseEnvelope, &out);
+
+    qInfo() << out.c_str();
+}
+
+Networking::Responses::GetInventoryResponse * PGoClient::getInventory()
+{
+    Networking::Requests::Request getInventoryRequest;
+    getInventoryRequest.set_request_type(Networking::Requests::GET_INVENTORY);
+    getInventoryRequest.set_request_message(Networking::Requests::Messages::GetInventoryMessage().SerializeAsString());
+    auto getInventoryResponse = performRequest<Networking::Responses::GetInventoryResponse>(getInventoryRequest);
+
+    std::string out;
+    google::protobuf::TextFormat::PrintToString(*getInventoryResponse, &out);
+
+    qInfo() << out.c_str();
+
+    return getInventoryResponse;
+}
+
+Networking::Responses::GetMapObjectsResponse *PGoClient::getMapObjects()
+{
+    S2CellId cell = S2CellId::FromLatLng(S2LatLng::FromDegrees(_latitude, _longitude)).parent(15);
+    std::vector<S2CellId> nearbyCells;
+    nearbyCells.push_back(cell);
+    cell.AppendAllNeighbors(15, &nearbyCells);
+
+    Networking::Requests::Messages::GetMapObjectsMessage message;
+    message.set_latitude(_latitude);
+    message.set_longitude(_longitude);
+    foreach (S2CellId cell, nearbyCells)
+    {
+        message.add_cell_id(cell.id());
+        message.add_since_timestamp_ms(0);
+    }
+
+    Networking::Requests::Request request;
+    request.set_request_type(Networking::Requests::GET_MAP_OBJECTS);
+    request.set_request_message(message.SerializeAsString());
+
+    auto response = performRequest<Networking::Responses::GetMapObjectsResponse>(request);
+
+    std::string out;
+    google::protobuf::TextFormat::PrintToString(*response, &out);
+
+    std::cout << out.c_str() << std::endl;
+
+    return response;
+}
+
+Networking::Envelopes::Unknown6 *PGoClient::generateSignature(Networking::Requests::Request &request)
+{
+    std::string input = _authTicket.SerializeAsString();
+    QByteArray location =
+            QByteArray::fromRawData(reinterpret_cast<char *>(&_altitude), sizeof(_altitude)) +
+            QByteArray::fromRawData(reinterpret_cast<char *>(&_longitude), sizeof(_longitude)) +
+            QByteArray::fromRawData(reinterpret_cast<char *>(&_latitude), sizeof(_latitude));
+
+    std::reverse(location.begin(), location.end());
+    XXH32_hash_t seed32 = XXH32(input.c_str(), input.size(), 0x1B845238);
+    XXH32_hash_t hash1 = XXH32(location.data(), location.size(), seed32);
+    XXH32_hash_t hash2 = XXH32(location.data(), location.size(), 0x1B845238);
+
+    std::string req = request.SerializeAsString();
+    XXH64_hash_t seed64 = XXH64(input.c_str(), input.size(), 0x1B845238);
+    XXH64_hash_t hash = XXH64(req.c_str(), req.size(), seed64);
+
+    uchar session_hash[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F };
+
+    Networking::Envelopes::Signature sig;
+    sig.set_timestamp_since_start(_timer.elapsed());
+    sig.set_timestamp(QDateTime::currentMSecsSinceEpoch());
+    sig.set_location_hash1(hash1);
+    sig.set_location_hash2(hash2);
+    sig.set_session_hash(session_hash, sizeof(session_hash));
+    sig.mutable_request_hash()->Add(hash);
+
+    Networking::Envelopes::Unknown6 *unk6 = new Networking::Envelopes::Unknown6();
+    unk6->set_request_type(6);
+    unk6->mutable_unknown2()->set_encrypted_signature(encrypt(sig.SerializeAsString()));
+
+    return unk6;
+}
+
+
+extern "C" int encrypt(char*, size_t, char*, size_t, uchar*, size_t*);
+
+std::string PGoClient::encrypt(const std::string &data)
+{
+    char session_hash[32] = { 0x00 };
+    size_t outSize = 32 + data.size() + (256 - (data.size() % 256));
+    uchar *out = new uchar[outSize];
+    ::encrypt((char*) data.c_str(), data.size(), session_hash, sizeof(session_hash), out, &outSize);
+
+    return std::string((char*)out, outSize);
+}
+
+template<typename ResponseType>
+ResponseType * PGoClient::performRequest(Networking::Requests::Request &request)
+{
+    generateSignature(request);
+
+    Networking::Envelopes::RequestEnvelope requestEnvelope;
+    requestEnvelope.set_status_code(2);
+    requestEnvelope.set_request_id(_requestId++);
+    requestEnvelope.set_latitude(_latitude);
+    requestEnvelope.set_longitude(_longitude);
+    requestEnvelope.set_altitude(_altitude);
+    requestEnvelope.mutable_auth_ticket()->CopyFrom(_authTicket);
+    requestEnvelope.set_unknown12(989);
+
+    requestEnvelope.mutable_requests()->Add()->MergeFrom(request);
+    requestEnvelope.set_allocated_unknown6(generateSignature(request));
+
+    QNetworkRequest req;
+    req.setUrl(_apiUrl);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Niantic App");
+    req.setRawHeader("Connection", "keep-alive");
+
+    QByteArray body(requestEnvelope.ByteSize(), '\0');
+    requestEnvelope.SerializeToArray(body.data(), body.size());
+
+    QEventLoop loop;
+    QNetworkReply *reply = _net.post(req, body);
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+
+    QByteArray response = reply->readAll();
+
+    Networking::Envelopes::ResponseEnvelope responseEnvelope;
+    if (responseEnvelope.ParseFromArray(response.data(), response.size()))
+    {
+        ResponseType *response = new ResponseType();
+        response->ParseFromString(responseEnvelope.returns(0));
+
+        return response;
+    }
+
+    return nullptr;
 }

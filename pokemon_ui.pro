@@ -30,7 +30,9 @@ SOURCES += src/main.cpp \
     src/proto/POGOProtos.Settings.Master.Item.pb.cc \
     src/proto/POGOProtos.Settings.Master.pb.cc \
     src/proto/POGOProtos.Settings.Master.Pokemon.pb.cc \
-    src/proto/POGOProtos.Settings.pb.cc
+    src/proto/POGOProtos.Settings.pb.cc \
+    src/authfactory.cpp \
+    third_party/xxHash/xxhash.cpp
 
 RESOURCES += resources/qml.qrc
 
@@ -64,10 +66,20 @@ HEADERS += \
     src/proto/POGOProtos.Settings.Master.Item.pb.h \
     src/proto/POGOProtos.Settings.Master.pb.h \
     src/proto/POGOProtos.Settings.Master.Pokemon.pb.h \
-    src/proto/POGOProtos.Settings.pb.h
+    src/proto/POGOProtos.Settings.pb.h \
+    src/iauth.h \
+    src/authfactory.h \
+    third_party/xxHash/xxhash.h
 
 FORMS += \
     ui/logindialog.ui \
     ui/mainwindow.ui
 
-unix:!macx: LIBS += -lcrypto -lprotobuf -lprotoc
+unix:!macx: LIBS += -L$$PWD/./libs -lcrypto -lprotobuf -lprotoc -lencrypt -lgflags
+
+unix:!macx: LIBS += -L$$PWD/third_party/s2-geometry-library/geometry/ -ls2cellid -lgoogle-strings -lgoogle-base -lgoogle-util-math -lgoogle-util-hash
+
+INCLUDEPATH += $$PWD/third_party/s2-geometry-library/geometry
+DEPENDPATH += $$PWD/third_party/s2-geometry-library/geometry
+
+unix:!macx: PRE_TARGETDEPS += $$PWD/third_party/s2-geometry-library/geometry/libs2cellid.a
