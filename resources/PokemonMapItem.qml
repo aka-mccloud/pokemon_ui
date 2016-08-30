@@ -4,14 +4,11 @@ import QtLocation 5.6
 import TestModule 1.0
 
 MapQuickItem {
-    id: root
-    scale: 0.6
 
-//    property double latitude: 0.0
-//    property double longitude: 0.0
     property Pokemon pokemon
 
-    signal onClicked(var obj, var mouse)
+    id: root
+    scale: 0.6
 
     coordinate {
         latitude: pokemon.latitude
@@ -48,6 +45,9 @@ MapQuickItem {
     MouseArea {
         cursorShape: Qt.PointingHandCursor
         anchors.fill: parent
-        onClicked: root.onClicked(root, mouse)
+        onClicked: {
+            var encounter = pgoClient.encounter(pokemon);
+            stackView.push("qrc:/CatchPokemonPage.qml", { encounter: encounter });
+        }
     }
 }

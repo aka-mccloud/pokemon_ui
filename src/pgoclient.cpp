@@ -6,8 +6,8 @@
 
 #include <google/protobuf/text_format.h>
 #include <third_party/xxHash/xxhash.h>
-#include <s2cellid.h>
-#include <s2latlng.h>
+#include <s2/s2cellid.h>
+#include <s2/s2latlng.h>
 
 #include "proto/POGOProtos.Networking.Envelopes.pb.h"
 #include "proto/POGOProtos.Networking.Requests.pb.h"
@@ -17,12 +17,13 @@
 #include "pgoclient.h"
 
 using namespace POGOProtos;
+using namespace POGOProtos::Networking::Responses;
 
 PGoClient::PGoClient(IAuth *auth, QObject *parent) : QObject(parent), _auth(auth), _apiUrl("https://pgorelease.nianticlabs.com/plfe/rpc")
 {
     _requestId = 1;
-    _latitude = 50.4245955;
-    _longitude = 30.5074414;
+    _latitude = 50.418417;
+    _longitude = 30.523445;
     _altitude = 8.0;
 
     _timer.start();
@@ -144,6 +145,38 @@ Networking::Responses::GetMapObjectsResponse *PGoClient::getMapObjects()
     std::cout << out.c_str() << std::endl;
 
     return response;
+}
+
+EncounterData *PGoClient::encounter(const Pokemon *pokemon)
+{
+    Networking::Requests::Messages::EncounterMessage message;
+    message.set_spawn_point_id(pokemon->spawnPointId().toStdString());
+    message.set_encounter_id(pokemon->encounterId());
+    message.set_player_latitude(pokemon->latitude());
+    message.set_player_longitude(pokemon->longitude());
+
+    Networking::Requests::Request encounterRequest;
+    encounterRequest.set_request_type(Networking::Requests::ENCOUNTER);
+    encounterRequest.set_request_message(message.SerializeAsString());
+    EncounterResponse *encounterResponse = performRequest<EncounterResponse>(encounterRequest);
+
+    std::string out;
+    google::protobuf::TextFormat::PrintToString(*encounterResponse, &out);
+
+    qInfo() << out.c_str();
+
+    PokemonData *pokemonData = new PokemonData();
+    pokemonData->setPokemonId(encounterResponse->wild_pokemon().pokemon_data().pokemon_id());
+    pokemonData->setIndividualAttack(encounterResponse->wild_pokemon().pokemon_data().individual_attack());
+    pokemonData->setIndividualDefence(encounterResponse->wild_pokemon().pokemon_data().individual_defense());
+    pokemonData->setIndividualStamina(encounterResponse->wild_pokemon().pokemon_data().individual_stamina());
+    pokemonData->setCp(encounterResponse->wild_pokemon().pokemon_data().cp());
+
+    EncounterData *encounterData = new EncounterData();
+    encounterData->setStatus(QString::fromStdString(Networking::Responses::EncounterResponse_Status_Name(encounterResponse->status())));
+    encounterData->setPokemonData(pokemonData);
+
+    return encounterData;
 }
 
 Networking::Envelopes::Unknown6 *PGoClient::generateSignature(Networking::Requests::Request &request)

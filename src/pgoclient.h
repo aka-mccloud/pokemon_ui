@@ -7,9 +7,12 @@
 #include <QUrl>
 
 #include "proto/POGOProtos.Networking.Envelopes.pb.h"
+#include "proto/POGOProtos.Networking.Requests.Messages.pb.h"
 #include "proto/POGOProtos.Networking.Responses.pb.h"
 
 #include "iauth.h"
+#include "pokemon.h"
+#include "encounterdata.h"
 
 class TestObject;
 
@@ -28,6 +31,7 @@ public slots:
 
     POGOProtos::Networking::Responses::GetInventoryResponse *getInventory();
     POGOProtos::Networking::Responses::GetMapObjectsResponse *getMapObjects();
+    EncounterData *encounter(const Pokemon *pokemon);
 
 private:
     template<typename ResponseType>

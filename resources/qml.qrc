@@ -4,6 +4,8 @@
         <file>PokemonMapItem.qml</file>
         <file>LoginDialog.qml</file>
         <file>MarkerMapItem.qml</file>
+        <file>MapPage.qml</file>
+        <file>CatchPokemonPage.qml</file>
     </qresource>
     <qresource prefix="/sprites">
         <file>marker-icon.png</file>

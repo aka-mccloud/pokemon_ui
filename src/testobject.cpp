@@ -1,3 +1,5 @@
+#include <google/protobuf/text_format.h>
+
 #include "proto/POGOProtos.Networking.Responses.pb.h"
 
 #include "testobject.h"
@@ -11,7 +13,7 @@ TestObject::TestObject(QQuickItem *parent)
     , _client(nullptr)
 {
     // update every 5 seconds
-    _refreshTimer.setInterval(15000);
+    _refreshTimer.setInterval(5000);
 
     connect(&_refreshTimer, &QTimer::timeout, this, &TestObject::refreshData);
     connect(this, &QQuickItem::stateChanged, this, &TestObject::changeState);
@@ -28,6 +30,11 @@ void TestObject::login(const QString &provider, const QString &login, const QStr
     _client->init();
 
     emit ready();
+}
+
+EncounterData *TestObject::encounter(Pokemon *pokemon)
+{
+    return _client->encounter(pokemon);
 }
 
 void TestObject::changeState(const QString &str)
@@ -52,6 +59,7 @@ bool contains(const std::list<Pokemon*> &list, qint64 encounterId)
 
 void TestObject::refreshData()
 {
+#if 1
     if (_client == nullptr)
         return;
 
@@ -74,6 +82,21 @@ void TestObject::refreshData()
             emit itemAppeared(p);
         }
     }
+#else
+    if (_pokemons.size() == 0)
+    {
+        Pokemon *p = new Pokemon();
+        p->setSpawnPointId("spawn_point_id");
+        p->setEncounterId(123);
+        p->setPokemonId(10);
+        p->setExpirationTimestampMs(123);
+        p->setLatitude(50.424420);
+        p->setLongitude(30.506768);
+        _pokemons.push_back(p);
+
+        emit itemAppeared(p);
+    }
+#endif
 }
 
 double TestObject::latitude() const

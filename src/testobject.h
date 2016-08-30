@@ -7,6 +7,7 @@
 #include "authfactory.h"
 #include "pokemon.h"
 #include "pgoclient.h"
+#include "encounterdata.h"
 
 class TestObject : public QQuickItem
 {
@@ -25,6 +26,7 @@ public:
 
 public:
     Q_INVOKABLE void login(const QString &provider, const QString &login, const QString &password);
+    Q_INVOKABLE EncounterData *encounter(Pokemon *pokemon);
 
 
 signals:
