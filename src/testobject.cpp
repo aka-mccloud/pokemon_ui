@@ -34,7 +34,34 @@ void TestObject::login(const QString &provider, const QString &login, const QStr
 
 EncounterData *TestObject::encounter(Pokemon *pokemon)
 {
-    return _client->encounter(pokemon);
+    Networking::Requests::Messages::EncounterMessage message;
+    message.set_spawn_point_id(pokemon->spawnPointId().toStdString());
+    message.set_encounter_id(pokemon->encounterId());
+    message.set_player_latitude(pokemon->latitude());
+    message.set_player_longitude(pokemon->longitude());
+
+    Networking::Requests::Request encounterRequest;
+    encounterRequest.set_request_type(Networking::Requests::ENCOUNTER);
+    encounterRequest.set_request_message(message.SerializeAsString());
+    EncounterResponse *encounterResponse = _client->post<EncounterResponse>(encounterRequest);
+
+    std::string out;
+    google::protobuf::TextFormat::PrintToString(*encounterResponse, &out);
+
+    qInfo() << out.c_str();
+
+    PokemonData *pokemonData = new PokemonData();
+    pokemonData->setPokemonId(encounterResponse->wild_pokemon().pokemon_data().pokemon_id());
+    pokemonData->setIndividualAttack(encounterResponse->wild_pokemon().pokemon_data().individual_attack());
+    pokemonData->setIndividualDefence(encounterResponse->wild_pokemon().pokemon_data().individual_defense());
+    pokemonData->setIndividualStamina(encounterResponse->wild_pokemon().pokemon_data().individual_stamina());
+    pokemonData->setCp(encounterResponse->wild_pokemon().pokemon_data().cp());
+
+    EncounterData *encounterData = new EncounterData();
+    encounterData->setStatus(QString::fromStdString(Networking::Responses::EncounterResponse_Status_Name(encounterResponse->status())));
+    encounterData->setPokemonData(pokemonData);
+
+    return encounterData;
 }
 
 void TestObject::changeState(const QString &str)

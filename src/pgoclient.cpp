@@ -16,6 +16,8 @@
 
 #include "pgoclient.h"
 
+extern "C" int encrypt(char*, size_t, char*, size_t, uchar*, size_t*);
+
 using namespace POGOProtos;
 using namespace POGOProtos::Networking::Responses;
 
@@ -107,7 +109,7 @@ Networking::Responses::GetInventoryResponse * PGoClient::getInventory()
     Networking::Requests::Request getInventoryRequest;
     getInventoryRequest.set_request_type(Networking::Requests::GET_INVENTORY);
     getInventoryRequest.set_request_message(Networking::Requests::Messages::GetInventoryMessage().SerializeAsString());
-    auto getInventoryResponse = performRequest<Networking::Responses::GetInventoryResponse>(getInventoryRequest);
+    auto getInventoryResponse = post<Networking::Responses::GetInventoryResponse>(getInventoryRequest);
 
     std::string out;
     google::protobuf::TextFormat::PrintToString(*getInventoryResponse, &out);
@@ -137,7 +139,7 @@ Networking::Responses::GetMapObjectsResponse *PGoClient::getMapObjects()
     request.set_request_type(Networking::Requests::GET_MAP_OBJECTS);
     request.set_request_message(message.SerializeAsString());
 
-    auto response = performRequest<Networking::Responses::GetMapObjectsResponse>(request);
+    auto response = post<Networking::Responses::GetMapObjectsResponse>(request);
 
     std::string out;
     google::protobuf::TextFormat::PrintToString(*response, &out);
@@ -147,36 +149,38 @@ Networking::Responses::GetMapObjectsResponse *PGoClient::getMapObjects()
     return response;
 }
 
-EncounterData *PGoClient::encounter(const Pokemon *pokemon)
+Networking::Envelopes::ResponseEnvelope PGoClient::performRequest(Networking::Requests::Request &request)
 {
-    Networking::Requests::Messages::EncounterMessage message;
-    message.set_spawn_point_id(pokemon->spawnPointId().toStdString());
-    message.set_encounter_id(pokemon->encounterId());
-    message.set_player_latitude(pokemon->latitude());
-    message.set_player_longitude(pokemon->longitude());
+    Networking::Envelopes::RequestEnvelope requestEnvelope;
+    requestEnvelope.set_status_code(2);
+    requestEnvelope.set_request_id(_requestId++);
+    requestEnvelope.set_latitude(_latitude);
+    requestEnvelope.set_longitude(_longitude);
+    requestEnvelope.set_altitude(_altitude);
+    requestEnvelope.mutable_auth_ticket()->CopyFrom(_authTicket);
+    requestEnvelope.set_unknown12(989);
 
-    Networking::Requests::Request encounterRequest;
-    encounterRequest.set_request_type(Networking::Requests::ENCOUNTER);
-    encounterRequest.set_request_message(message.SerializeAsString());
-    EncounterResponse *encounterResponse = performRequest<EncounterResponse>(encounterRequest);
+    requestEnvelope.mutable_requests()->Add()->MergeFrom(request);
+    requestEnvelope.set_allocated_unknown6(generateSignature(request));
 
-    std::string out;
-    google::protobuf::TextFormat::PrintToString(*encounterResponse, &out);
+    QNetworkRequest req;
+    req.setUrl(_apiUrl);
+    req.setHeader(QNetworkRequest::UserAgentHeader, "Niantic App");
+    req.setRawHeader("Connection", "keep-alive");
 
-    qInfo() << out.c_str();
+    QByteArray body(requestEnvelope.ByteSize(), '\0');
+    requestEnvelope.SerializeToArray(body.data(), body.size());
 
-    PokemonData *pokemonData = new PokemonData();
-    pokemonData->setPokemonId(encounterResponse->wild_pokemon().pokemon_data().pokemon_id());
-    pokemonData->setIndividualAttack(encounterResponse->wild_pokemon().pokemon_data().individual_attack());
-    pokemonData->setIndividualDefence(encounterResponse->wild_pokemon().pokemon_data().individual_defense());
-    pokemonData->setIndividualStamina(encounterResponse->wild_pokemon().pokemon_data().individual_stamina());
-    pokemonData->setCp(encounterResponse->wild_pokemon().pokemon_data().cp());
+    QEventLoop loop;
+    QNetworkReply *reply = _net.post(req, body);
+    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
 
-    EncounterData *encounterData = new EncounterData();
-    encounterData->setStatus(QString::fromStdString(Networking::Responses::EncounterResponse_Status_Name(encounterResponse->status())));
-    encounterData->setPokemonData(pokemonData);
+    QByteArray response = reply->readAll();
+    Networking::Envelopes::ResponseEnvelope responseEnvelope;
+    responseEnvelope.ParseFromArray(response.data(), response.size());
 
-    return encounterData;
+    return responseEnvelope;
 }
 
 Networking::Envelopes::Unknown6 *PGoClient::generateSignature(Networking::Requests::Request &request)
@@ -213,9 +217,6 @@ Networking::Envelopes::Unknown6 *PGoClient::generateSignature(Networking::Reques
     return unk6;
 }
 
-
-extern "C" int encrypt(char*, size_t, char*, size_t, uchar*, size_t*);
-
 std::string PGoClient::encrypt(const std::string &data)
 {
     char session_hash[32] = { 0x00 };
@@ -224,48 +225,4 @@ std::string PGoClient::encrypt(const std::string &data)
     ::encrypt((char*) data.c_str(), data.size(), session_hash, sizeof(session_hash), out, &outSize);
 
     return std::string((char*)out, outSize);
-}
-
-template<typename ResponseType>
-ResponseType * PGoClient::performRequest(Networking::Requests::Request &request)
-{
-    generateSignature(request);
-
-    Networking::Envelopes::RequestEnvelope requestEnvelope;
-    requestEnvelope.set_status_code(2);
-    requestEnvelope.set_request_id(_requestId++);
-    requestEnvelope.set_latitude(_latitude);
-    requestEnvelope.set_longitude(_longitude);
-    requestEnvelope.set_altitude(_altitude);
-    requestEnvelope.mutable_auth_ticket()->CopyFrom(_authTicket);
-    requestEnvelope.set_unknown12(989);
-
-    requestEnvelope.mutable_requests()->Add()->MergeFrom(request);
-    requestEnvelope.set_allocated_unknown6(generateSignature(request));
-
-    QNetworkRequest req;
-    req.setUrl(_apiUrl);
-    req.setHeader(QNetworkRequest::UserAgentHeader, "Niantic App");
-    req.setRawHeader("Connection", "keep-alive");
-
-    QByteArray body(requestEnvelope.ByteSize(), '\0');
-    requestEnvelope.SerializeToArray(body.data(), body.size());
-
-    QEventLoop loop;
-    QNetworkReply *reply = _net.post(req, body);
-    connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-    loop.exec();
-
-    QByteArray response = reply->readAll();
-
-    Networking::Envelopes::ResponseEnvelope responseEnvelope;
-    if (responseEnvelope.ParseFromArray(response.data(), response.size()))
-    {
-        ResponseType *response = new ResponseType();
-        response->ParseFromString(responseEnvelope.returns(0));
-
-        return response;
-    }
-
-    return nullptr;
 }

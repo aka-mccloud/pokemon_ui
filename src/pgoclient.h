@@ -24,6 +24,21 @@ class PGoClient : public QObject
 public:
     explicit PGoClient(IAuth *auth, QObject *parent = 0);
 
+    template<typename ResponseType>
+    ResponseType * post(POGOProtos::Networking::Requests::Request &request)
+    {
+        POGOProtos::Networking::Envelopes::ResponseEnvelope responseEnvelope = performRequest(request);
+        if (responseEnvelope.returns_size() > 0)
+        {
+            ResponseType *response = new ResponseType();
+            response->ParseFromString(responseEnvelope.returns(0));
+
+            return response;
+        }
+
+        return nullptr;
+    }
+
 signals:
 
 public slots:
@@ -31,12 +46,9 @@ public slots:
 
     POGOProtos::Networking::Responses::GetInventoryResponse *getInventory();
     POGOProtos::Networking::Responses::GetMapObjectsResponse *getMapObjects();
-    EncounterData *encounter(const Pokemon *pokemon);
 
 private:
-    template<typename ResponseType>
-    ResponseType * performRequest(POGOProtos::Networking::Requests::Request &request);
-
+    POGOProtos::Networking::Envelopes::ResponseEnvelope performRequest(POGOProtos::Networking::Requests::Request &request);
     POGOProtos::Networking::Envelopes::Unknown6 * generateSignature(POGOProtos::Networking::Requests::Request &request);
     std::string encrypt(const std::string &data);
 
